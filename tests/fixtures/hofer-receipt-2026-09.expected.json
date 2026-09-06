@@ -1,0 +1,13 @@
+{
+  "type": "expense",
+  "amount": "62.69",
+  "currency": "EUR",
+  "effectiveDate": "2026-09-05",
+  "accountId": "urgent",
+  "fromAccountId": null,
+  "toAccountId": null,
+  "categoryId": "groceries",
+  "counterparty": "HOFER KG",
+  "paymentMethod": "card",
+  "comment": "27 товаров, продукты и хозяйственные покупки"
+}

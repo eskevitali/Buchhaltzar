@@ -1,0 +1,27 @@
+{
+  "name": "buchhaltzar",
+  "version": "0.8.1",
+  "private": true,
+  "description": "Автономная двойная бухгалтерия в Obsidian",
+  "scripts": {
+    "build": "node esbuild.mjs production",
+    "dev": "node esbuild.mjs",
+    "test": "vitest run",
+    "check": "tsc --noEmit",
+    "release:server": "node esbuild.mjs production && node scripts/package-server-release.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "builtin-modules": "^4.0.0",
+    "esbuild": "^0.24.2",
+    "obsidian": "latest",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+main.js.map
+coverage/
+dist/
+.env
+.env.*
+*.log
+data.json
+vault-template/obsidian-registry.json

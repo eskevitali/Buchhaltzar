@@ -1,0 +1,105 @@
+.buchhaltzar-view { padding: 0 !important; background: #c5c5c5; }
+.buchhaltzar {
+  --bz-bg: #c5c5c5; --bz-surface: #fff; --bz-soft: #f8eacf; --bz-text: #1a1a1a; --bz-muted: #3d454d;
+  --bz-border: #a8a8a8; --bz-primary: #565631; --bz-primary-hover: #3f4024; --bz-primary-soft: #e8e6d4;
+  --bz-earth: #8d905f; --bz-danger: #8b3a3a; --bz-focus: 0 0 0 3px rgba(86,86,49,.35); --bz-shadow: 0 1px 2px rgba(0,0,0,.06);
+  min-height: 100%; max-width: 1000px; margin: 0 auto; padding: 28px 20px 44px; display: grid; gap: 22px;
+  color: var(--bz-text); background: linear-gradient(180deg,var(--bz-soft) 0,var(--bz-surface) 36%,var(--bz-bg) 100%);
+  font-family: Lato,Arial,Helvetica,sans-serif; font-size: 16px; line-height: 1.55; box-sizing: border-box;
+}
+.theme-dark .buchhaltzar-view { background: #25261f; }
+.theme-dark .buchhaltzar {
+  --bz-bg: #25261f; --bz-surface: #303128; --bz-soft: #3a382b; --bz-text: #f4f1e7; --bz-muted: #c6c5b9;
+  --bz-border: #606150; --bz-primary: #c8c99a; --bz-primary-hover: #e1e2b5; --bz-primary-soft: #454634;
+  --bz-earth: #babc82; --bz-danger: #e8a0a0; --bz-focus: 0 0 0 3px rgba(200,201,154,.28); --bz-shadow: 0 1px 2px rgba(0,0,0,.3);
+}
+.buchhaltzar,.buchhaltzar * { box-sizing: border-box; }
+.buchhaltzar button,.buchhaltzar input,.buchhaltzar select { font-family: inherit; touch-action: manipulation; }
+.buchhaltzar__header { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 18px; color: var(--bz-text); background: var(--bz-surface); border: 1px solid var(--bz-border); border-radius: 8px; box-shadow: var(--bz-shadow); }
+.buchhaltzar__brand { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.buchhaltzar__brand img { width: 40px; height: 40px; object-fit: contain; flex: 0 0 auto; }
+.buchhaltzar__header h1 { margin: 3px 0 0; color: var(--bz-primary); font-size: clamp(1.55rem,1.25rem + 1vw,2.05rem); line-height: 1.1; letter-spacing: 0; }
+.buchhaltzar__eyebrow { color: var(--bz-earth); font-size: 11px; font-weight: 700; letter-spacing: 1.25px; text-transform: uppercase; }
+.buchhaltzar__total { display: grid; gap: 2px; min-width: 122px; padding: 9px 12px; text-align: right; color: var(--bz-primary); background: var(--bz-primary-soft); border-radius: 8px; }
+.buchhaltzar__total span { color: var(--bz-muted); font-size: 11px; font-weight: 700; letter-spacing: .45px; text-transform: uppercase; }
+.buchhaltzar__total strong { font-size: 1.15rem; }
+.buchhaltzar section { min-width: 0; }
+.buchhaltzar h2 { margin: 0 0 12px; color: var(--bz-primary); font-size: 1.08rem; line-height: 1.25; }
+.buchhaltzar__accounts { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 10px; }
+.buchhaltzar__account { min-width: 0; padding: 14px; display: grid; gap: 8px; background: var(--bz-surface); border: 1px solid var(--bz-border); border-radius: 8px; box-shadow: var(--bz-shadow); }
+.buchhaltzar__account span { color: var(--bz-muted); font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.buchhaltzar__account strong { color: var(--bz-primary); font-size: 1rem; overflow-wrap: anywhere; }
+.buchhaltzar__panel { padding: 18px; background: var(--bz-soft); border: 1px solid var(--bz-border); border-radius: 8px; box-shadow: var(--bz-shadow); }
+.buchhaltzar form { display: grid; gap: 14px; }
+.buchhaltzar label { display: grid; gap: 6px; color: var(--bz-muted); font-size: 11px; font-weight: 700; letter-spacing: .35px; text-transform: uppercase; }
+.buchhaltzar input,.buchhaltzar select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; color: var(--bz-text); background: var(--bz-surface); border: 1px solid var(--bz-border); border-radius: 5px; box-shadow: none; font-size: 16px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.buchhaltzar input:focus,.buchhaltzar select:focus { border-color: var(--bz-primary); box-shadow: var(--bz-focus); outline: none; }
+.buchhaltzar button,.buchhaltzar .buchhaltzar__receipt-button { min-height: 44px; padding: 10px 16px; display: inline-flex; align-items: center; justify-content: center; color: #fff; background: #565631; border: 1px solid #565631; border-radius: 5px; box-shadow: none; font-size: 13px; font-weight: 700; line-height: 1.2; text-align: center; cursor: pointer; transition: background .15s,border-color .15s,color .15s,transform .15s; }
+.buchhaltzar button:hover,.buchhaltzar .buchhaltzar__receipt-button:hover { color: #fff; background: #3f4024; border-color: #3f4024; }
+.buchhaltzar button:active,.buchhaltzar .buchhaltzar__receipt-button:active { transform: scale(.98); }
+.buchhaltzar button:focus-visible,.buchhaltzar .buchhaltzar__receipt-button:focus-within { outline: none; box-shadow: var(--bz-focus); }
+.buchhaltzar button:disabled { cursor: not-allowed; opacity: .55; transform: none; }
+.buchhaltzar button.mod-warning { background: var(--bz-danger); border-color: var(--bz-danger); }
+.buchhaltzar form > button:not(.mod-cta),.buchhaltzar__split-table > button,.buchhaltzar__section-title button,.buchhaltzar__transaction-actions button,.buchhaltzar__attachment button { color: var(--bz-primary); background: var(--bz-surface); border-color: var(--bz-primary); }
+.buchhaltzar form > button:not(.mod-cta):hover,.buchhaltzar__split-table > button:hover,.buchhaltzar__section-title button:hover,.buchhaltzar__transaction-actions button:hover,.buchhaltzar__attachment button:hover { color: var(--bz-primary-hover); background: var(--bz-primary-soft); border-color: var(--bz-primary-hover); }
+.buchhaltzar form > button.mod-cta { width: 100%; color: #fff; background: #565631; border-color: #565631; }
+.buchhaltzar__row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.buchhaltzar__ai-tools { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; }
+.buchhaltzar__ai-tools > button,.buchhaltzar__ai-tools .buchhaltzar__receipt-button { color: var(--bz-primary); background: var(--bz-surface); border-color: var(--bz-primary); }
+.buchhaltzar__ai-tools > button:hover,.buchhaltzar__ai-tools .buchhaltzar__receipt-button:hover { color: var(--bz-primary-hover); background: var(--bz-primary-soft); }
+.buchhaltzar__receipt-button { position: relative; letter-spacing: 0; text-transform: none; }
+.buchhaltzar__receipt-button input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.buchhaltzar__attachment { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; color: var(--bz-primary); background: var(--bz-primary-soft); border: 1px solid var(--bz-border); border-radius: 8px; }
+.buchhaltzar__attachment span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 700; }
+.buchhaltzar__attachment button { min-height: 36px; padding: 6px 10px; }
+.buchhaltzar__split-table { display: grid; gap: 9px; padding: 14px; background: var(--bz-surface); border: 1px solid var(--bz-border); border-radius: 8px; box-shadow: var(--bz-shadow); }
+.buchhaltzar__receipt-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: var(--bz-primary); }
+.buchhaltzar__receipt-heading span { font-size: 12px; }
+.buchhaltzar__receipt-heading .is-match { color: #2e7d32; }
+.buchhaltzar__receipt-heading .is-mismatch { color: var(--bz-danger); }
+.theme-dark .buchhaltzar__receipt-heading .is-match { color: #9dcc82; }
+.buchhaltzar__split-row { display: grid; grid-template-columns: 24px minmax(90px,1fr) minmax(130px,1.4fr) 38px; gap: 8px; align-items: center; }
+.buchhaltzar__split-row > span { color: var(--bz-earth); text-align: center; font-size: 12px; font-weight: 700; }
+.buchhaltzar__split-row button { min-height: 38px; padding: 4px; color: var(--bz-danger); background: transparent; border-color: var(--bz-danger); font-size: 18px; }
+.buchhaltzar__split-row button:hover { color: #fff; background: var(--bz-danger); border-color: var(--bz-danger); }
+.buchhaltzar__hint,.buchhaltzar__empty { margin: 0; color: var(--bz-muted); font-size: 13px; }
+.buchhaltzar__report-panel { padding: 18px; display: grid; gap: 14px; background: var(--bz-surface); border: 1px solid var(--bz-border); border-radius: 8px; box-shadow: var(--bz-shadow); }
+.buchhaltzar__report-panel .buchhaltzar__section-title > div { display: grid; gap: 4px; }
+.buchhaltzar__report-controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
+.buchhaltzar__report-controls > button { min-width: 140px; }
+.buchhaltzar__report-result { padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--bz-primary); background: var(--bz-primary-soft); border: 1px solid var(--bz-border); border-radius: 8px; }
+.buchhaltzar__report-result span { min-width: 0; font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
+.buchhaltzar__report-result button { flex: 0 0 auto; min-height: 36px; padding: 6px 11px; color: var(--bz-primary); background: var(--bz-surface); border-color: var(--bz-primary); }
+.buchhaltzar__section-title,.buchhaltzar__transaction,.buchhaltzar__transaction-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.buchhaltzar__section-title h2 { margin: 0; }
+.buchhaltzar__section-title button { min-height: 38px; padding: 6px 11px; }
+.buchhaltzar__transactions { margin-top: 12px; display: grid; gap: 9px; }
+.buchhaltzar__transaction { padding: 13px 14px; background: var(--bz-surface); border: 1px solid var(--bz-border); border-radius: 8px; box-shadow: var(--bz-shadow); }
+.buchhaltzar__transaction > div:first-child { min-width: 0; display: grid; gap: 3px; }
+.buchhaltzar__transaction strong { color: var(--bz-primary); }
+.buchhaltzar__transaction span { color: var(--bz-muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.buchhaltzar__transaction-actions > span { color: var(--bz-text); font-size: 14px; font-weight: 700; }
+.buchhaltzar__transaction-actions button { min-height: 34px; padding: 5px 8px; color: var(--bz-danger); border-color: var(--bz-danger); font-size: 11px; }
+.buchhaltzar__diagnostics { color: var(--bz-danger); }
+.buchhaltzar__diagnostics code { display: block; padding: 4px 0; white-space: normal; }
+@media (max-width:520px) {
+  .buchhaltzar { padding: 14px 12px 32px; gap: 18px; }
+  .buchhaltzar__header { padding: 14px; align-items: flex-start; }
+  .buchhaltzar__brand { gap: 9px; }
+  .buchhaltzar__brand img { width: 34px; height: 34px; }
+  .buchhaltzar__header h1 { font-size: 1.4rem; }
+  .buchhaltzar__eyebrow { font-size: 9px; }
+  .buchhaltzar__total { min-width: 104px; padding: 7px 9px; }
+  .buchhaltzar__total strong { font-size: .95rem; }
+  .buchhaltzar__accounts { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .buchhaltzar__account { padding: 11px; }
+  .buchhaltzar__panel { padding: 14px; }
+  .buchhaltzar__row,.buchhaltzar__ai-tools,.buchhaltzar__report-controls { grid-template-columns: 1fr; }
+  .buchhaltzar__report-panel { padding: 14px; }
+  .buchhaltzar__report-controls > button { width: 100%; }
+  .buchhaltzar__report-result { align-items: stretch; flex-direction: column; }
+  .buchhaltzar__split-row { grid-template-columns: 22px minmax(76px,.8fr) minmax(105px,1.2fr) 36px; gap: 6px; }
+  .buchhaltzar__receipt-heading { align-items: flex-start; flex-direction: column; }
+  .buchhaltzar__transaction { align-items: flex-start; }
+  .buchhaltzar__transaction-actions { display: grid; justify-items: end; }
+}
