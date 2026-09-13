@@ -1,5 +1,5 @@
 import { formatMoney } from "./money";
-import type { Account, Transaction, TransactionType } from "./types";
+import { postingMedium, type Account, type Medium, type Transaction, type TransactionType } from "./types";
 
 export type ReportPeriod = "week" | "month" | "quarter" | "year";
 
@@ -28,7 +28,8 @@ const transactionLabels: Record<TransactionType, string> = {
   "main-income": "Основной приход",
   expense: "Расход",
   transfer: "Перевод",
-  reversal: "Сторно"
+  reversal: "Сторно",
+  opening: "Входящие остатки"
 };
 
 function parseDate(value: string): Date {
@@ -87,10 +88,29 @@ function escapeCell(value: string): string {
   return value.replace(/\r?\n/g, " ").replace(/\|/g, "\\|").trim() || "—";
 }
 
-function transactionPath(transaction: Transaction, rootFolder: string): string {
+function transactionPath(transaction: Transaction, rootFolder: string, folder = "Transactions"): string {
   const [year, month] = transaction.effectiveDate.split("-");
   const root = rootFolder.trim().replace(/^\/+|\/+$/g, "");
-  return [root, "Transactions", year, month, transaction.id].filter(Boolean).join("/");
+  return [root, folder, year, month, transaction.id].filter(Boolean).join("/");
+}
+
+function flowFor(accountId: string, medium: Medium | "all", range: ReportRange, transactions: Transaction[], currency: string): { opening: bigint; debit: bigint; credit: bigint } {
+  let opening = 0n;
+  let debit = 0n;
+  let credit = 0n;
+  for (const transaction of transactions.filter((item) => item.currency === currency)) {
+    const amount = transaction.postings
+      .filter((posting) => posting.accountId === accountId && (medium === "all" || postingMedium(posting) === medium))
+      .reduce((sum, posting) => sum + posting.minorUnits, 0n);
+    if (transaction.type === "opening") {
+      if (transaction.effectiveDate <= range.end) opening += amount;
+    } else if (transaction.effectiveDate < range.start) opening += amount;
+    else if (transaction.effectiveDate <= range.end) {
+      if (amount > 0n) debit += amount;
+      if (amount < 0n) credit += -amount;
+    }
+  }
+  return { opening, debit, credit };
 }
 
 function visibleAmount(transaction: Transaction): bigint {
@@ -100,46 +120,69 @@ function visibleAmount(transaction: Transaction): bigint {
   return outgoing < 0n ? -outgoing : outgoing;
 }
 
-export function buildArchiveReport(
-  period: ReportPeriod,
-  anchorDate: string,
+function buildReport(
+  period: string,
+  range: ReportRange,
   accounts: Account[],
   transactions: Transaction[],
   currency: string,
-  locale = "ru-RU",
-  generatedAt = new Date(),
-  rootFolder = ""
+  locale: string,
+  generatedAt: Date,
+  rootFolder: string,
+  transactionFolder: string
 ): ArchiveReport {
-  const range = getReportRange(period, anchorDate);
   const eligible = transactions
     .filter((transaction) => transaction.currency === currency && transaction.effectiveDate >= range.start && transaction.effectiveDate <= range.end)
     .sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate) || a.createdAt.localeCompare(b.createdAt));
-  const internal = accounts.filter((account) => account.kind === "asset").sort((a, b) => a.order - b.order);
+  const internal = accounts.filter((account) => account.kind === "asset" && account.id !== "cash").sort((a, b) => a.order - b.order);
   const names = new Map(accounts.map((account) => [account.id, account.name]));
 
   let incoming = 0n;
   let outgoing = 0n;
+  let incomingCash = 0n;
+  let incomingCashless = 0n;
+  let outgoingCash = 0n;
+  let outgoingCashless = 0n;
   for (const transaction of eligible) {
+    if (transaction.type === "opening") continue;
     const external = transaction.postings.find((posting) => posting.accountId === "external")?.minorUnits ?? 0n;
+    if (external === 0n) continue;
     if (external < 0n) incoming += -external;
     if (external > 0n) outgoing += external;
+    for (const posting of transaction.postings) {
+      const medium = postingMedium(posting);
+      if (!medium) continue;
+      if (external < 0n && posting.minorUnits > 0n) {
+        if (medium === "cash") incomingCash += posting.minorUnits;
+        else incomingCashless += posting.minorUnits;
+      }
+      if (external > 0n && posting.minorUnits < 0n) {
+        if (medium === "cash") outgoingCash += -posting.minorUnits;
+        else outgoingCashless += -posting.minorUnits;
+      }
+    }
   }
 
   const money = (value: bigint): string => formatMoney(value, currency, locale);
+  const movementRow = (name: string, form: string, flow: { opening: bigint; debit: bigint; credit: bigint }): string =>
+    `| ${escapeCell(name)} | ${escapeCell(form)} | ${money(flow.opening)} | ${money(flow.debit)} | ${money(flow.credit)} | ${money(flow.opening + flow.debit - flow.credit)} |`;
   const accountRows = internal.map((account) => {
-    let opening = 0n;
-    let debit = 0n;
-    let credit = 0n;
-    for (const transaction of transactions.filter((item) => item.currency === currency)) {
-      const amount = transaction.postings.filter((posting) => posting.accountId === account.id).reduce((sum, posting) => sum + posting.minorUnits, 0n);
-      if (transaction.effectiveDate < range.start) opening += amount;
-      else if (transaction.effectiveDate <= range.end) {
-        if (amount > 0n) debit += amount;
-        if (amount < 0n) credit += -amount;
-      }
-    }
-    return `| ${escapeCell(account.name)} | ${money(opening)} | ${money(debit)} | ${money(credit)} | ${money(opening + debit - credit)} |`;
+    const flow = flowFor(account.id, "all", range, transactions, currency);
+    return `| ${escapeCell(account.name)} | ${money(flow.opening)} | ${money(flow.debit)} | ${money(flow.credit)} | ${money(flow.opening + flow.debit - flow.credit)} |`;
   });
+  const formRows: string[] = [];
+  let cashOpening = 0n;
+  let cashDebit = 0n;
+  let cashCredit = 0n;
+  for (const account of internal) {
+    const cashless = flowFor(account.id, "cashless", range, transactions, currency);
+    const cash = flowFor(account.id, "cash", range, transactions, currency);
+    formRows.push(movementRow(account.name, "счёт", cashless), movementRow(account.name, "касса", cash));
+    cashOpening += cash.opening;
+    cashDebit += cash.debit;
+    cashCredit += cash.credit;
+  }
+  const cashSummary = movementRow("Касса", "наличные по всем счетам", { opening: cashOpening, debit: cashDebit, credit: cashCredit });
 
   const transactionRows = eligible.map((transaction, index) => {
     const movements = transaction.postings
@@ -151,7 +194,7 @@ export function buildArchiveReport(
       .join("; ");
     const description = [transaction.counterparty, transaction.comment].filter(Boolean).join(" — ");
     const receipt = transaction.receiptPath ? `[[${transaction.receiptPath}|Чек]]` : "—";
-    return `| ${index + 1} | ${displayDate(transaction.effectiveDate)} | ${transactionLabels[transaction.type]} | ${escapeCell(description)} | ${escapeCell(transaction.categoryId ?? "")} | ${escapeCell(movements)} | ${money(visibleAmount(transaction))} | ${receipt} | [[${transactionPath(transaction, rootFolder)}|Открыть]] |`;
+    return `| ${index + 1} | ${displayDate(transaction.effectiveDate)} | ${transactionLabels[transaction.type]} | ${escapeCell(description)} | ${escapeCell(transaction.categoryId ?? "")} | ${escapeCell(movements)} | ${money(visibleAmount(transaction))} | ${receipt} | [[${transactionPath(transaction, rootFolder, transactionFolder)}|Открыть]] |`;
   });
 
   const generated = generatedAt.toISOString();
@@ -172,18 +215,25 @@ export function buildArchiveReport(
     "",
     "## Итоги",
     "",
-    "| Показатель | Значение |",
-    "| --- | ---: |",
-    `| Поступления | ${money(incoming)} |`,
-    `| Списания | ${money(outgoing)} |`,
-    `| Чистое изменение | ${money(incoming - outgoing)} |`,
-    `| Количество транзакций | ${eligible.length} |`,
+    "| Показатель | Всего | Счёт | Касса |",
+    "| --- | ---: | ---: | ---: |",
+    `| Поступления | ${money(incoming)} | ${money(incomingCashless)} | ${money(incomingCash)} |`,
+    `| Списания | ${money(outgoing)} | ${money(outgoingCashless)} | ${money(outgoingCash)} |`,
+    `| Чистое изменение | ${money(incoming - outgoing)} | ${money(incomingCashless - outgoingCashless)} | ${money(incomingCash - outgoingCash)} |`,
+    `| Количество транзакций | ${eligible.length} | — | — |`,
     "",
     "## Движение по счетам",
     "",
     "| Счёт | На начало | Поступило | Списано | На конец |",
     "| --- | ---: | ---: | ---: | ---: |",
     ...accountRows,
+    "",
+    "## Наличные и безналичные",
+    "",
+    "| Счёт | Форма | На начало | Поступило | Списано | На конец |",
+    "| --- | --- | ---: | ---: | ---: | ---: |",
+    ...formRows,
+    cashSummary,
     "",
     "## Расшифровка транзакций",
     "",
@@ -199,4 +249,39 @@ export function buildArchiveReport(
     range,
     transactionCount: eligible.length
   };
+}
+
+export function buildArchiveReport(
+  period: ReportPeriod,
+  anchorDate: string,
+  accounts: Account[],
+  transactions: Transaction[],
+  currency: string,
+  locale = "ru-RU",
+  generatedAt = new Date(),
+  rootFolder = ""
+): ArchiveReport {
+  return buildReport(period, getReportRange(period, anchorDate), accounts, transactions, currency, locale, generatedAt, rootFolder, "Transactions");
+}
+
+export function buildCloseReport(
+  accounts: Account[],
+  transactions: Transaction[],
+  currency: string,
+  locale = "ru-RU",
+  generatedAt = new Date(),
+  rootFolder = ""
+): ArchiveReport {
+  const dates = transactions
+    .filter((transaction) => transaction.currency === currency && transaction.type !== "opening")
+    .map((transaction) => transaction.effectiveDate)
+    .sort();
+  const start = dates[0] ?? isoDate(generatedAt);
+  const end = dates[dates.length - 1] ?? isoDate(generatedAt);
+  const range: ReportRange = {
+    start,
+    end,
+    title: `Закрытие периода ${displayDate(start)}–${displayDate(end)}`
+  };
+  return buildReport("close", range, accounts, transactions, currency, locale, generatedAt, rootFolder, "Archive/Transactions");
 }

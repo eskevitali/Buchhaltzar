@@ -1,7 +1,7 @@
 import type { TransactionType } from "../core/types";
 
 export interface AiTransactionDraft {
-  type: Exclude<TransactionType, "reversal">;
+  type: Exclude<TransactionType, "reversal" | "opening">;
   amount: string;
   currency: string;
   effectiveDate: string;

@@ -1,8 +1,8 @@
-import { calculateMediumBalances, buildTransaction, reverseTransaction } from "../core/ledger";
+import { calculateMediumBalances, buildOpeningTransaction, buildTransaction, reverseTransaction } from "../core/ledger";
 import { postingMedium, type Transaction, type TransactionInput } from "../core/types";
 import type { ObsidianRepository, RepositorySnapshot } from "../storage/obsidian-repository";
 import { DEFAULT_AI_SETTINGS, type AiSettings } from "../ai/types";
-import { buildArchiveReport, type ArchiveReport, type ReportPeriod } from "../core/report";
+import { buildArchiveReport, buildCloseReport, type ArchiveReport, type ReportPeriod } from "../core/report";
 
 export interface BuchhaltzarSettings {
   rootFolder: string;
@@ -26,6 +26,7 @@ export interface TransactionPreview {
 }
 export interface ReceiptAttachment { data: ArrayBuffer; extension: string; }
 export interface SavedArchiveReport extends ArchiveReport { path: string; }
+export interface ClosedPeriod extends SavedArchiveReport { archived: number; openingId?: string; }
 
 export class BuchhaltzarService {
   constructor(private readonly repository: ObsidianRepository, readonly settings: BuchhaltzarSettings) {}
@@ -59,8 +60,22 @@ export class BuchhaltzarService {
     const original = snapshot.transactions.find((transaction) => transaction.id === id);
     if (!original) throw new Error("Исходная операция не найдена");
     if (original.type === "reversal") throw new Error("Нельзя сторнировать сторно");
+    if (original.type === "opening") throw new Error("Нельзя сторнировать входящие остатки");
     if (snapshot.transactions.some((transaction) => transaction.reverses === id)) throw new Error("Операция уже сторнирована");
     await this.repository.createTransaction(reverseTransaction(original));
+  }
+
+  async closePeriod(effectiveDate: string): Promise<ClosedPeriod> {
+    const snapshot = await this.repository.snapshot();
+    const activity = snapshot.transactions.filter((transaction) => transaction.type !== "opening");
+    if (!activity.length) throw new Error("Нет операций для закрытия периода");
+    const media = calculateMediumBalances(snapshot.accounts, snapshot.transactions, this.settings.baseCurrency);
+    const report = buildCloseReport(snapshot.accounts, snapshot.transactions, this.settings.baseCurrency, this.settings.locale, new Date(), this.settings.rootFolder);
+    const path = await this.repository.saveReport(report.filename, report.content);
+    const archived = await this.repository.archiveLiveJournal();
+    const opening = buildOpeningTransaction(media, this.settings.baseCurrency, effectiveDate);
+    if (opening) await this.repository.createTransaction(opening);
+    return { ...report, path, archived, openingId: opening?.id };
   }
 
   async createArchiveReport(period: ReportPeriod, anchorDate: string): Promise<SavedArchiveReport> {

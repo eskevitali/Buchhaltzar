@@ -34,7 +34,7 @@ export class ObsidianRepository {
   }
 
   async initialize(): Promise<void> {
-    for (const folder of ["Accounts", "Transactions", "Receipts", "Reports", "Templates", "Notes", "Settings"]) {
+    for (const folder of ["Accounts", "Transactions", "Receipts", "Reports", "Archive", "Templates", "Notes", "Settings"]) {
       await this.ensureFolder(this.path(folder));
     }
     for (const account of DEFAULT_ACCOUNTS) {
@@ -79,7 +79,7 @@ export class ObsidianRepository {
   }
 
   async saveReport(filename: string, content: string): Promise<string> {
-    if (!/^report-(week|month|quarter|year)-\d{4}-\d{2}-\d{2}--\d{4}-\d{2}-\d{2}\.md$/.test(filename)) {
+    if (!/^report-(week|month|quarter|year|close)-\d{4}-\d{2}-\d{2}--\d{4}-\d{2}-\d{2}\.md$/.test(filename)) {
       throw new Error("Некорректное имя отчёта");
     }
     const folder = this.path("Reports");
@@ -90,6 +90,23 @@ export class ObsidianRepository {
     else if (existing) throw new Error("Путь отчёта занят каталогом");
     else await this.vault.create(path, content);
     return path;
+  }
+
+  async archiveLiveJournal(): Promise<number> {
+    const prefix = `${this.path("Transactions")}/`;
+    const archiveRoot = this.path("Archive", "Transactions");
+    const files = this.vault.getMarkdownFiles().filter((file) => file.path.startsWith(prefix));
+    let count = 0;
+    for (const file of files) {
+      const relative = file.path.slice(prefix.length);
+      const destination = normalizePath(`${archiveRoot}/${relative}`);
+      const folder = destination.split("/").slice(0, -1).join("/");
+      if (folder) await this.ensureFolder(folder);
+      if (this.vault.getAbstractFileByPath(destination)) throw new Error(`Архив уже содержит ${destination}`);
+      await this.vault.rename(file, destination);
+      count += 1;
+    }
+    return count;
   }
 
   async findTransaction(id: string): Promise<Transaction | null> {

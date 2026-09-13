@@ -10,7 +10,8 @@ import lokvitaMark from "../assets/lokvita-mark.png";
 import type { ReportPeriod } from "../core/report";
 
 interface Props { service: BuchhaltzarService; getAiProvider: () => AiProvider | null; openPath: (path: string) => Promise<void>; }
-type Draft = { type: Exclude<TransactionType, "reversal">; amount: string; accountId: string; fromAccountId: string; toAccountId: string; date: string; medium: Medium; categoryId: string; counterparty: string; comment: string };
+type Draft = { type: Exclude<TransactionType, "reversal" | "opening">; amount: string; accountId: string; fromAccountId: string; toAccountId: string; date: string; medium: Medium; categoryId: string; counterparty: string; comment: string };
+const journalLabels: Record<TransactionType, string> = { income: "Приход", "main-income": "Основной приход", expense: "Расход", transfer: "Перевод", reversal: "Сторно", opening: "Входящие остатки" };
 type ExpenseSplit = { id: string; amount: string; accountId: string };
 
 function today(): string {
@@ -140,6 +141,18 @@ export function Dashboard({ service, getAiProvider, openPath }: Props): React.JS
     finally { setBusy(false); }
   }
 
+  async function closePeriod(): Promise<void> {
+    if (!window.confirm("Закрыть период?\n\nБудет сохранён отчёт. Журнал операций уйдёт в Archive. Текущие остатки станут входящими, не приходом.")) return;
+    setBusy(true);
+    try {
+      const closed = await service.closePeriod(today());
+      setReportPath(closed.path);
+      await reload();
+      new Notice(`Период закрыт. В архив: ${closed.archived}. Отчёт: ${closed.range.title}`);
+    } catch (error) { new Notice(error instanceof Error ? error.message : String(error), 7000); }
+    finally { setBusy(false); }
+  }
+
   return <div className="buchhaltzar">
     <header className="buchhaltzar__header"><div className="buchhaltzar__brand"><img src={lokvitaMark} alt="" width="40" height="40"/><div><div className="buchhaltzar__eyebrow">LOKVITA · GRAVITON</div><h1>Buchhaltzar</h1></div></div><div className="buchhaltzar__total"><span>Учтено</span><strong>{formatMoney(total, service.settings.baseCurrency, service.settings.locale)}</strong></div></header>
 
@@ -188,18 +201,19 @@ export function Dashboard({ service, getAiProvider, openPath }: Props): React.JS
     </form></section>
 
     <section className="buchhaltzar__report-panel">
-      <div className="buchhaltzar__section-title"><div><h2>Архивный отчёт</h2><p className="buchhaltzar__hint">Сводка и расшифровка транзакций сохраняются одним файлом в Reports.</p></div></div>
+      <div className="buchhaltzar__section-title"><div><h2>Архивный отчёт</h2><p className="buchhaltzar__hint">Сводка сохраняется в Reports. Закрытие периода убирает журнал в Archive и оставляет входящие остатки.</p></div></div>
       <div className="buchhaltzar__report-controls">
         <label>Период<select value={reportPeriod} onChange={(event) => setReportPeriod(event.target.value as ReportPeriod)}><option value="week">Неделя</option><option value="month">Месяц</option><option value="quarter">Квартал</option><option value="year">Год</option></select></label>
         <label>Дата внутри периода<input type="date" required value={reportDate} onChange={(event) => setReportDate(event.target.value)}/></label>
         <button type="button" onClick={() => void createReport()} disabled={busy || !reportDate}>Сформировать</button>
+        <button type="button" onClick={() => void closePeriod()} disabled={busy}>Закрыть период</button>
       </div>
       {reportPath && <div className="buchhaltzar__report-result"><span>Готово: {reportPath}</span><button type="button" onClick={() => void openPath(reportPath)}>Открыть отчёт</button></div>}
     </section>
 
     <section><div className="buchhaltzar__section-title"><h2>Журнал</h2><button type="button" onClick={() => void reload()} disabled={busy}>Обновить</button></div>
       {!transactions.length && <p className="buchhaltzar__empty">Проведённых операций пока нет.</p>}
-      <div className="buchhaltzar__transactions">{transactions.slice(0, 50).map((transaction) => { const first = transaction.postings[0]?.minorUnits ?? 0n; const amount = first < 0n ? -first : first; return <article key={transaction.id} className="buchhaltzar__transaction"><div><strong>{typeLabels[transaction.type as Draft["type"]] ?? "Сторно"}</strong><span>{transaction.effectiveDate} · {transaction.comment || "Без комментария"}</span></div><div className="buchhaltzar__transaction-actions"><span>{formatMoney(amount, transaction.currency, service.settings.locale)}</span>{transaction.type !== "reversal" && !reversed.has(transaction.id) && <button type="button" onClick={() => void reverse(transaction.id)} disabled={busy}>Сторно</button>}</div></article>; })}</div>
+      <div className="buchhaltzar__transactions">{transactions.slice(0, 50).map((transaction) => { const first = transaction.postings[0]?.minorUnits ?? 0n; const amount = first < 0n ? -first : first; return <article key={transaction.id} className="buchhaltzar__transaction"><div><strong>{journalLabels[transaction.type]}</strong><span>{transaction.effectiveDate} · {transaction.comment || "Без комментария"}</span></div><div className="buchhaltzar__transaction-actions"><span>{formatMoney(amount, transaction.currency, service.settings.locale)}</span>{transaction.type !== "reversal" && transaction.type !== "opening" && !reversed.has(transaction.id) && <button type="button" onClick={() => void reverse(transaction.id)} disabled={busy}>Сторно</button>}</div></article>; })}</div>
     </section>
     {!!diagnostics.length && <details className="buchhaltzar__diagnostics"><summary>Диагностика: {diagnostics.length}</summary>{diagnostics.map((item) => <code key={item}>{item}</code>)}</details>}
   </div>;

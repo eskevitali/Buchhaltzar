@@ -114,3 +114,29 @@ export function cashTotal(mediumBalances: Map<string, MediumBalance>): bigint {
   }
   return total;
 }
+
+export function buildOpeningTransaction(mediumBalances: Map<string, MediumBalance>, currency: string, effectiveDate: string, now = new Date()): Transaction | null {
+  const postings: Posting[] = [];
+  let total = 0n;
+  for (const accountId of PURPOSE_ACCOUNT_IDS) {
+    const balance = mediumBalances.get(accountId) ?? { cash: 0n, cashless: 0n };
+    if (balance.cashless !== 0n) {
+      postings.push(assetPosting(accountId, balance.cashless, "cashless"));
+      total += balance.cashless;
+    }
+    if (balance.cash !== 0n) {
+      postings.push(assetPosting(accountId, balance.cash, "cash"));
+      total += balance.cash;
+    }
+  }
+  if (!postings.length) return null;
+  postings.push({ accountId: "external", minorUnits: -total });
+  validatePostings(postings);
+  return {
+    schema: "buchhaltzar.transaction.v1",
+    id: createId("tx"), idempotencyKey: createId("ui"), createdAt: now.toISOString(),
+    effectiveDate, type: "opening", status: "posted", currency: currency.toUpperCase(),
+    comment: `Входящие остатки на ${effectiveDate.split("-").reverse().join(".")}`,
+    postings
+  };
+}

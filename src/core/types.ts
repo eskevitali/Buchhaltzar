@@ -4,7 +4,7 @@ export const MEDIA = ["cash", "cashless"] as const;
 export type SystemAccountId = (typeof ACCOUNT_IDS)[number];
 export type PurposeAccountId = (typeof PURPOSE_ACCOUNT_IDS)[number];
 export type Medium = (typeof MEDIA)[number];
-export type TransactionType = "income" | "main-income" | "expense" | "transfer" | "reversal";
+export type TransactionType = "income" | "main-income" | "expense" | "transfer" | "reversal" | "opening";
 
 export function isPurposeAccount(id: string): boolean {
   return (PURPOSE_ACCOUNT_IDS as readonly string[]).includes(id);
@@ -68,7 +68,7 @@ export interface Transaction {
 }
 
 export interface TransactionInput {
-  type: Exclude<TransactionType, "reversal">;
+  type: Exclude<TransactionType, "reversal" | "opening">;
   amount: bigint;
   currency: string;
   accountId?: string;

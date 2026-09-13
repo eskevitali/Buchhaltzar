@@ -84,7 +84,7 @@ export function parseTransaction(content: string): Transaction {
     return { name: string(item.name, "receiptItems.name"), quantity: optionalString(item.quantity), unitPriceMinorUnits: unitPrice ? BigInt(unitPrice) : undefined, minorUnits: BigInt(minor), accountId: string(item.accountId, "receiptItems.accountId") };
   }) : undefined;
   const type = string(data.type, "type") as TransactionType;
-  if (!["income", "main-income", "expense", "transfer", "reversal"].includes(type)) throw new Error("Неизвестный тип операции");
+  if (!["income", "main-income", "expense", "transfer", "reversal", "opening"].includes(type)) throw new Error("Неизвестный тип операции");
   if (data.status !== "posted") throw new Error("Поддерживаются только проведённые операции");
   return {
     schema: "buchhaltzar.transaction.v1", id: string(data.id, "id"),
@@ -98,7 +98,7 @@ export function parseTransaction(content: string): Transaction {
 
 export function transactionTitle(transaction: Transaction): string {
   const names: Record<TransactionType, string> = {
-    income: "Приход", "main-income": "Основной приход", expense: "Расход", transfer: "Перевод", reversal: "Сторно"
+    income: "Приход", "main-income": "Основной приход", expense: "Расход", transfer: "Перевод", reversal: "Сторно", opening: "Входящие остатки"
   };
   return `${names[transaction.type]}${transaction.comment ? `: ${transaction.comment}` : ""}`;
 }

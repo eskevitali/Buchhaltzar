@@ -71,7 +71,7 @@
 .buchhaltzar__hint,.buchhaltzar__empty { margin: 0; color: var(--bz-muted); font-size: 13px; }
 .buchhaltzar__report-panel { padding: 18px; display: grid; gap: 14px; background: var(--bz-surface); border: 1px solid var(--bz-border); border-radius: 8px; box-shadow: var(--bz-shadow); }
 .buchhaltzar__report-panel .buchhaltzar__section-title > div { display: grid; gap: 4px; }
-.buchhaltzar__report-controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
+.buchhaltzar__report-controls { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 10px; align-items: end; }
 .buchhaltzar__report-controls > button { min-width: 140px; }
 .buchhaltzar__report-result { padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--bz-primary); background: var(--bz-primary-soft); border: 1px solid var(--bz-border); border-radius: 8px; }
 .buchhaltzar__report-result span { min-width: 0; font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
