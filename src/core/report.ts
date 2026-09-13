@@ -144,7 +144,10 @@ export function buildArchiveReport(
   const transactionRows = eligible.map((transaction, index) => {
     const movements = transaction.postings
       .filter((posting) => posting.accountId !== "external")
-      .map((posting) => `${names.get(posting.accountId) ?? posting.accountId} ${money(posting.minorUnits)}`)
+      .map((posting) => {
+        const form = posting.medium === "cash" ? "касса" : posting.medium === "cashless" ? "счёт" : "";
+        return `${names.get(posting.accountId) ?? posting.accountId}${form ? ` · ${form}` : ""} ${money(posting.minorUnits)}`;
+      })
       .join("; ");
     const description = [transaction.counterparty, transaction.comment].filter(Boolean).join(" — ");
     const receipt = transaction.receiptPath ? `[[${transaction.receiptPath}|Чек]]` : "—";

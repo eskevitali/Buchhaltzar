@@ -1,7 +1,7 @@
 {
   "id": "buchhaltzar",
   "name": "Buchhaltzar",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "minAppVersion": "1.5.0",
   "description": "Полностью автономная двойная бухгалтерия, где Obsidian Vault является хранилищем данных.",
   "author": "GraviTon",

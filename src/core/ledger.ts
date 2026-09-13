@@ -1,7 +1,17 @@
 import { splitEvenly } from "./money";
-import type { Account, Posting, Transaction, TransactionInput } from "./types";
+import { PURPOSE_ACCOUNT_IDS, mediumFromPaymentMethod, postingMedium, type Account, type Medium, type Posting, type Transaction, type TransactionInput } from "./types";
 
-const MAIN_ACCOUNTS = ["urgent", "business", "fund", "capital", "future"];
+const MAIN_ACCOUNTS = [...PURPOSE_ACCOUNT_IDS];
+
+export interface MediumBalance { cash: bigint; cashless: bigint }
+
+function resolveMedium(input: TransactionInput): Medium {
+  return input.medium ?? mediumFromPaymentMethod(input.paymentMethod);
+}
+
+function assetPosting(accountId: string, minorUnits: bigint, medium: Medium): Posting {
+  return { accountId, minorUnits, medium };
+}
 
 export function createId(prefix: "tx" | "ui" = "tx"): string {
   const time = Date.now().toString(36).toUpperCase();
@@ -19,37 +29,39 @@ export function validatePostings(postings: Posting[]): void {
 export function buildTransaction(input: TransactionInput, now = new Date()): Transaction {
   if (input.amount <= 0n) throw new Error("Сумма должна быть больше нуля");
   const external = "external";
+  const medium = resolveMedium(input);
   let postings: Posting[];
   if (input.type === "income") {
-    if (!input.accountId || input.accountId === external) throw new Error("Выберите внутренний счёт");
-    postings = [{ accountId: external, minorUnits: -input.amount }, { accountId: input.accountId, minorUnits: input.amount }];
+    if (!input.accountId || input.accountId === external || input.accountId === "cash") throw new Error("Выберите внутренний счёт");
+    postings = [{ accountId: external, minorUnits: -input.amount }, assetPosting(input.accountId, input.amount, medium)];
   } else if (input.type === "main-income") {
     const shares = splitEvenly(input.amount, MAIN_ACCOUNTS.length);
-    postings = [{ accountId: external, minorUnits: -input.amount }, ...MAIN_ACCOUNTS.map((accountId, index) => ({ accountId, minorUnits: shares[index] ?? 0n }))];
+    postings = [{ accountId: external, minorUnits: -input.amount }, ...MAIN_ACCOUNTS.map((accountId, index) => assetPosting(accountId, shares[index] ?? 0n, medium))];
   } else if (input.type === "expense") {
     if (input.receiptItems?.length) {
       const itemTotal = input.receiptItems.reduce((sum, item) => sum + item.minorUnits, 0n);
       if (itemTotal !== input.amount) throw new Error("Сумма позиций чека не совпадает с итогом");
-      if (input.receiptItems.some((item) => !item.name.trim() || item.accountId === external || item.minorUnits === 0n)) throw new Error("Проверьте позиции и счета чека");
+      if (input.receiptItems.some((item) => !item.name.trim() || item.accountId === external || item.accountId === "cash" || item.minorUnits === 0n)) throw new Error("Проверьте позиции и счета чека");
       const grouped = new Map<string, bigint>();
       for (const item of input.receiptItems) grouped.set(item.accountId, (grouped.get(item.accountId) ?? 0n) + item.minorUnits);
-      postings = [...grouped.entries()].filter(([, amount]) => amount !== 0n).map(([accountId, amount]) => ({ accountId, minorUnits: -amount }));
+      postings = [...grouped.entries()].filter(([, amount]) => amount !== 0n).map(([accountId, amount]) => assetPosting(accountId, -amount, medium));
       postings.push({ accountId: external, minorUnits: input.amount });
     } else {
-      if (!input.accountId || input.accountId === external) throw new Error("Выберите счёт списания");
-      postings = [{ accountId: input.accountId, minorUnits: -input.amount }, { accountId: external, minorUnits: input.amount }];
+      if (!input.accountId || input.accountId === external || input.accountId === "cash") throw new Error("Выберите счёт списания");
+      postings = [assetPosting(input.accountId, -input.amount, medium), { accountId: external, minorUnits: input.amount }];
     }
   } else {
     if (!input.fromAccountId || !input.toAccountId) throw new Error("Выберите оба счёта");
+    if (input.fromAccountId === "cash" || input.toAccountId === "cash") throw new Error("Касса не является счётом перевода");
     if (input.fromAccountId === input.toAccountId) throw new Error("Счета перевода должны различаться");
-    postings = [{ accountId: input.fromAccountId, minorUnits: -input.amount }, { accountId: input.toAccountId, minorUnits: input.amount }];
+    postings = [assetPosting(input.fromAccountId, -input.amount, medium), assetPosting(input.toAccountId, input.amount, medium)];
   }
   validatePostings(postings);
   return {
     schema: "buchhaltzar.transaction.v1",
     id: createId("tx"), idempotencyKey: createId("ui"), createdAt: now.toISOString(),
     effectiveDate: input.effectiveDate, type: input.type, status: "posted", currency: input.currency.toUpperCase(),
-    paymentMethod: input.paymentMethod, categoryId: input.categoryId, counterparty: input.counterparty,
+    paymentMethod: input.paymentMethod ?? medium, categoryId: input.categoryId, counterparty: input.counterparty,
     comment: input.comment?.trim() || undefined, receiptItems: input.receiptItems, postings
   };
 }
@@ -76,4 +88,29 @@ export function calculateBalances(accounts: Account[], transactions: Transaction
     for (const posting of transaction.postings) balances.set(posting.accountId, (balances.get(posting.accountId) ?? 0n) + posting.minorUnits);
   }
   return balances;
+}
+
+export function calculateMediumBalances(accounts: Account[], transactions: Transaction[], currency?: string): Map<string, MediumBalance> {
+  const balances = new Map(accounts.map((account) => [account.id, { cash: 0n, cashless: 0n }]));
+  for (const transaction of transactions) {
+    if (transaction.status !== "posted") continue;
+    if (currency && transaction.currency !== currency) continue;
+    for (const posting of transaction.postings) {
+      const medium = postingMedium(posting);
+      if (!medium) continue;
+      const current = balances.get(posting.accountId) ?? { cash: 0n, cashless: 0n };
+      current[medium] += posting.minorUnits;
+      balances.set(posting.accountId, current);
+    }
+  }
+  return balances;
+}
+
+export function cashTotal(mediumBalances: Map<string, MediumBalance>): bigint {
+  let total = 0n;
+  for (const [accountId, balance] of mediumBalances) {
+    if (accountId === "external") continue;
+    total += balance.cash;
+  }
+  return total;
 }

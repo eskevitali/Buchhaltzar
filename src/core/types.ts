@@ -1,6 +1,28 @@
 export const ACCOUNT_IDS = ["urgent", "business", "fund", "capital", "future", "cash", "external"] as const;
+export const PURPOSE_ACCOUNT_IDS = ["urgent", "business", "fund", "capital", "future"] as const;
+export const MEDIA = ["cash", "cashless"] as const;
 export type SystemAccountId = (typeof ACCOUNT_IDS)[number];
+export type PurposeAccountId = (typeof PURPOSE_ACCOUNT_IDS)[number];
+export type Medium = (typeof MEDIA)[number];
 export type TransactionType = "income" | "main-income" | "expense" | "transfer" | "reversal";
+
+export function isPurposeAccount(id: string): boolean {
+  return (PURPOSE_ACCOUNT_IDS as readonly string[]).includes(id);
+}
+
+export function parseMedium(value: unknown): Medium | undefined {
+  return value === "cash" || value === "cashless" ? value : undefined;
+}
+
+export function mediumFromPaymentMethod(value: string | undefined): Medium {
+  return value === "cash" ? "cash" : "cashless";
+}
+
+export function postingMedium(posting: Posting): Medium | undefined {
+  if (posting.accountId === "external") return undefined;
+  if (posting.accountId === "cash") return "cash";
+  return posting.medium ?? "cashless";
+}
 
 export interface Account {
   schema: "buchhaltzar.account.v1";
@@ -15,6 +37,7 @@ export interface Account {
 export interface Posting {
   accountId: string;
   minorUnits: bigint;
+  medium?: Medium;
 }
 
 export interface ReceiptItem {
@@ -52,6 +75,7 @@ export interface TransactionInput {
   fromAccountId?: string;
   toAccountId?: string;
   effectiveDate: string;
+  medium?: Medium;
   paymentMethod?: string;
   categoryId?: string;
   counterparty?: string;

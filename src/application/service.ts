@@ -1,5 +1,5 @@
-import { calculateBalances, buildTransaction, reverseTransaction } from "../core/ledger";
-import type { Transaction, TransactionInput } from "../core/types";
+import { calculateMediumBalances, buildTransaction, reverseTransaction } from "../core/ledger";
+import { postingMedium, type Transaction, type TransactionInput } from "../core/types";
 import type { ObsidianRepository, RepositorySnapshot } from "../storage/obsidian-repository";
 import { DEFAULT_AI_SETTINGS, type AiSettings } from "../ai/types";
 import { buildArchiveReport, type ArchiveReport, type ReportPeriod } from "../core/report";
@@ -37,8 +37,13 @@ export class BuchhaltzarService {
   async preview(input: TransactionInput): Promise<TransactionPreview> {
     const transaction = buildTransaction(input);
     const snapshot = await this.repository.snapshot();
-    const balances = calculateBalances(snapshot.accounts, snapshot.transactions, input.currency);
-    const insufficientAccounts = transaction.postings.filter((posting) => posting.minorUnits < 0n && posting.accountId !== "external" && (balances.get(posting.accountId) ?? 0n) + posting.minorUnits < 0n).map((posting) => posting.accountId);
+    const balances = calculateMediumBalances(snapshot.accounts, snapshot.transactions, input.currency);
+    const insufficientAccounts = transaction.postings.filter((posting) => {
+      const medium = postingMedium(posting);
+      if (posting.minorUnits >= 0n || !medium) return false;
+      const current = balances.get(posting.accountId)?.[medium] ?? 0n;
+      return current + posting.minorUnits < 0n;
+    }).map((posting) => posting.accountId);
     if (insufficientAccounts.length && this.settings.negativeBalance === "block") throw new Error("Недостаточно средств на одном или нескольких счетах");
     return { transaction, insufficientAccounts };
   }

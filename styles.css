@@ -26,9 +26,15 @@
 .buchhaltzar section { min-width: 0; }
 .buchhaltzar h2 { margin: 0 0 12px; color: var(--bz-primary); font-size: 1.08rem; line-height: 1.25; }
 .buchhaltzar__accounts { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 10px; }
-.buchhaltzar__account { min-width: 0; padding: 14px; display: grid; gap: 8px; background: var(--bz-surface); border: 1px solid var(--bz-border); border-radius: 8px; box-shadow: var(--bz-shadow); }
-.buchhaltzar__account span { color: var(--bz-muted); font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.buchhaltzar__account { min-width: 0; padding: 14px; display: grid; gap: 6px; background: var(--bz-surface); border: 1px solid var(--bz-border); border-radius: 8px; box-shadow: var(--bz-shadow); }
+.buchhaltzar__account > span { color: var(--bz-muted); font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.buchhaltzar__account-layers { display: grid; gap: 1px; }
+.buchhaltzar__account-layers small { display: flex; justify-content: space-between; gap: 8px; color: var(--bz-muted); font-size: 11px; font-weight: 600; line-height: 1.3; letter-spacing: 0; text-transform: none; }
+.buchhaltzar__account-layers em { font-style: normal; }
+.buchhaltzar__account-layers b { font-weight: 650; overflow-wrap: anywhere; }
+.buchhaltzar__account-note { color: var(--bz-muted); font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; }
 .buchhaltzar__account strong { color: var(--bz-primary); font-size: 1rem; overflow-wrap: anywhere; }
+.buchhaltzar__account.is-cash { background: var(--bz-primary-soft); }
 .buchhaltzar__panel { padding: 18px; background: var(--bz-soft); border: 1px solid var(--bz-border); border-radius: 8px; box-shadow: var(--bz-shadow); }
 .buchhaltzar form { display: grid; gap: 14px; }
 .buchhaltzar label { display: grid; gap: 6px; color: var(--bz-muted); font-size: 11px; font-weight: 700; letter-spacing: .35px; text-transform: uppercase; }

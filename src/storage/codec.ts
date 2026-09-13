@@ -1,5 +1,5 @@
 import { parseYaml } from "obsidian";
-import type { Account, Posting, ReceiptItem, Transaction, TransactionType } from "../core/types";
+import { parseMedium, type Account, type Posting, type ReceiptItem, type Transaction, type TransactionType } from "../core/types";
 
 function q(value: string): string { return JSON.stringify(value); }
 function frontmatter(content: string): string {
@@ -54,7 +54,9 @@ export function serializeTransaction(transaction: Transaction): string {
       `    minorUnits: ${q(item.minorUnits.toString())}`, `    accountId: ${q(item.accountId)}`
     ])] : []),
     "postings:", ...transaction.postings.flatMap((posting) => [
-      `  - accountId: ${q(posting.accountId)}`, `    minorUnits: ${q(posting.minorUnits.toString())}`
+      `  - accountId: ${q(posting.accountId)}`,
+      `    minorUnits: ${q(posting.minorUnits.toString())}`,
+      ...(posting.medium ? [`    medium: ${q(posting.medium)}`] : [])
     ]), "---", "", `# ${transactionTitle(transaction)}`, "",
     transaction.comment || "Операция Buchhaltzar.", ""
   ];
@@ -70,7 +72,9 @@ export function parseTransaction(content: string): Transaction {
     const posting = object(raw);
     const minor = string(posting.minorUnits, "minorUnits");
     if (!/^-?\d+$/.test(minor)) throw new Error("minorUnits должен быть целым числом");
-    return { accountId: string(posting.accountId, "accountId"), minorUnits: BigInt(minor) };
+    const accountId = string(posting.accountId, "accountId");
+    const medium = parseMedium(posting.medium) ?? (accountId === "cash" ? "cash" : accountId === "external" ? undefined : "cashless");
+    return { accountId, minorUnits: BigInt(minor), ...(medium ? { medium } : {}) };
   });
   const receiptItems: ReceiptItem[] | undefined = Array.isArray(data.receiptItems) ? data.receiptItems.map((raw) => {
     const item = object(raw); const minor = string(item.minorUnits, "receiptItems.minorUnits");

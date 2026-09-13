@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTransaction, calculateBalances, reverseTransaction, validatePostings } from "../src/core/ledger";
+import { buildTransaction, calculateBalances, calculateMediumBalances, cashTotal, reverseTransaction, validatePostings } from "../src/core/ledger";
 import { formatMoney, parseAmount, splitEvenly } from "../src/core/money";
 import { DEFAULT_ACCOUNTS } from "../src/core/types";
 import { normalizeAiDraft } from "../src/ai/normalize";
@@ -42,7 +42,7 @@ describe("ledger", () => {
     for (const input of [
       { type: "income" as const, amount: 100n, currency: "EUR", effectiveDate: "2026-09-06", accountId: "business" },
       { type: "expense" as const, amount: 25n, currency: "EUR", effectiveDate: "2026-09-06", accountId: "urgent" },
-      { type: "transfer" as const, amount: 40n, currency: "EUR", effectiveDate: "2026-09-06", fromAccountId: "cash", toAccountId: "business" }
+      { type: "transfer" as const, amount: 40n, currency: "EUR", effectiveDate: "2026-09-06", fromAccountId: "urgent", toAccountId: "business" }
     ]) expect(() => validatePostings(buildTransaction(input).postings)).not.toThrow();
   });
   it("reversal restores all balances", () => {
@@ -66,8 +66,8 @@ describe("ledger", () => {
       ]
     });
     expect(transaction.postings).toEqual([
-      { accountId: "urgent", minorUnits: -400n }, { accountId: "fund", minorUnits: -150n },
-      { accountId: "capital", minorUnits: -250n }, { accountId: "future", minorUnits: -200n },
+      { accountId: "urgent", minorUnits: -400n, medium: "cashless" }, { accountId: "fund", minorUnits: -150n, medium: "cashless" },
+      { accountId: "capital", minorUnits: -250n, medium: "cashless" }, { accountId: "future", minorUnits: -200n, medium: "cashless" },
       { accountId: "external", minorUnits: 1000n }
     ]);
     expect(() => validatePostings(transaction.postings)).not.toThrow();
@@ -113,5 +113,30 @@ describe("archive reports", () => {
     expect(report.content).toContain("## Расшифровка транзакций");
     expect(report.content).toContain(`[[Transactions/2026/09/${expense.id}|Открыть]]`);
     expect(report.content).not.toContain("01.10.2026");
+  });
+});
+
+describe("cash and cashless media", () => {
+  it("posts income onto the chosen medium without mixing forms", () => {
+    const cash = buildTransaction({ type: "income", amount: 5000n, currency: "EUR", effectiveDate: "2026-09-13", accountId: "urgent", medium: "cash" });
+    const bank = buildTransaction({ type: "income", amount: 7000n, currency: "EUR", effectiveDate: "2026-09-13", accountId: "urgent", medium: "cashless" });
+    const media = calculateMediumBalances(DEFAULT_ACCOUNTS, [cash, bank], "EUR");
+    const urgent = media.get("urgent");
+    expect(urgent).toEqual({ cash: 5000n, cashless: 7000n });
+    expect(calculateBalances(DEFAULT_ACCOUNTS, [cash, bank], "EUR").get("urgent")).toBe(12000n);
+    expect(cashTotal(media)).toBe(5000n);
+  });
+
+  it("splits main income across purpose accounts in the same medium", () => {
+    const transaction = buildTransaction({ type: "main-income", amount: 1000n, currency: "EUR", effectiveDate: "2026-09-13", medium: "cash" });
+    expect(transaction.postings.filter((posting) => posting.accountId !== "external").every((posting) => posting.medium === "cash")).toBe(true);
+    expect(cashTotal(calculateMediumBalances(DEFAULT_ACCOUNTS, [transaction], "EUR"))).toBe(1000n);
+  });
+
+  it("does not spend cash when only cashless remains on the account", () => {
+    const bank = buildTransaction({ type: "income", amount: 10000n, currency: "EUR", effectiveDate: "2026-09-13", accountId: "urgent", medium: "cashless" });
+    const spendCash = buildTransaction({ type: "expense", amount: 1000n, currency: "EUR", effectiveDate: "2026-09-13", accountId: "urgent", medium: "cash" });
+    const media = calculateMediumBalances(DEFAULT_ACCOUNTS, [bank, spendCash], "EUR");
+    expect(media.get("urgent")).toEqual({ cash: -1000n, cashless: 10000n });
   });
 });
