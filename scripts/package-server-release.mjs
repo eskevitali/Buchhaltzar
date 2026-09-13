@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -17,10 +17,22 @@ const pluginFiles = ["main.js", "manifest.json", "styles.css"];
 for (const filename of pluginFiles) await copyFile(resolve(projectRoot, filename), resolve(releaseDir, filename));
 await copyFile(resolve(projectRoot, "versions.json"), resolve(outputRoot, "versions.json"));
 
+const stagingDir = resolve(outputRoot, "zip-staging");
+const stagedPlugin = resolve(stagingDir, "buchhaltzar");
+await mkdir(stagedPlugin, { recursive: true });
+for (const filename of pluginFiles) await copyFile(resolve(releaseDir, filename), resolve(stagedPlugin, filename));
+const installerFiles = ["install.py", "install.sh", "install.ps1", "Установка.txt"];
+for (const filename of installerFiles) {
+  const destination = resolve(stagingDir, filename);
+  await copyFile(resolve(projectRoot, "scripts", "installer", filename), destination);
+  if (filename === "install.py" || filename === "install.sh") await chmod(destination, 0o755);
+}
+
 const archiveName = `buchhaltzar-${manifest.version}.zip`;
 const archivePath = resolve(outputRoot, archiveName);
-const zipped = spawnSync("zip", ["-q", "-j", archivePath, ...pluginFiles.map((filename) => resolve(releaseDir, filename))], { encoding: "utf8" });
+const zipped = spawnSync("zip", ["-q", "-r", archivePath, "buchhaltzar", ...installerFiles], { encoding: "utf8", cwd: stagingDir });
 if (zipped.status !== 0) throw new Error(zipped.stderr || "Unable to create ZIP archive");
+await rm(stagingDir, { recursive: true, force: true });
 
 async function sha256(path) {
   return createHash("sha256").update(await readFile(path)).digest("hex");

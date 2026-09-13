@@ -7,3 +7,6 @@ dist/
 *.log
 data.json
 vault-template/obsidian-registry.json
+scripts/installer/__pycache__/
+__pycache__/
+*.pyc

@@ -2,6 +2,7 @@ import { normalizePath, TFile, Vault } from "obsidian";
 import { validatePostings } from "../core/ledger";
 import { DEFAULT_ACCOUNTS, type Account, type Transaction } from "../core/types";
 import { parseAccount, parseTransaction, serializeAccount, serializeTransaction } from "./codec";
+import { createVaultFileIfAbsent, ensureVaultFolder } from "./vault-write";
 import royalAccountingNote from "../content/Почему учёт называется царским.md";
 import gravitonAnnotation from "../content/GraviTON — краткая аннотация.md";
 import welcomeNote from "../content/Добро пожаловать.md";
@@ -28,13 +29,8 @@ export class ObsidianRepository {
     return normalizePath([root, ...parts].filter(Boolean).join("/"));
   }
 
-  private async ensureFolder(path: string): Promise<void> {
-    const pieces = normalizePath(path).split("/").filter(Boolean);
-    let current = "";
-    for (const piece of pieces) {
-      current = current ? `${current}/${piece}` : piece;
-      if (!this.vault.getAbstractFileByPath(current)) await this.vault.createFolder(current);
-    }
+  private ensureFolder(path: string): Promise<void> {
+    return ensureVaultFolder(this.vault, normalizePath(path));
   }
 
   async initialize(): Promise<void> {
@@ -42,13 +38,9 @@ export class ObsidianRepository {
       await this.ensureFolder(this.path(folder));
     }
     for (const account of DEFAULT_ACCOUNTS) {
-      const path = this.path("Accounts", `${account.id}.md`);
-      if (!this.vault.getAbstractFileByPath(path)) await this.vault.create(path, serializeAccount(account));
+      await createVaultFileIfAbsent(this.vault, this.path("Accounts", `${account.id}.md`), serializeAccount(account));
     }
-    const schemaPath = this.path("Settings", "schema.md");
-    if (!this.vault.getAbstractFileByPath(schemaPath)) {
-      await this.vault.create(schemaPath, "---\nschema: buchhaltzar.settings.v1\nversion: 1\n---\n\n# Схема Buchhaltzar\n");
-    }
+    await createVaultFileIfAbsent(this.vault, this.path("Settings", "schema.md"), "---\nschema: buchhaltzar.settings.v1\nversion: 1\n---\n\n# Схема Buchhaltzar\n");
     await this.installBundledContent();
   }
 
@@ -60,9 +52,7 @@ export class ObsidianRepository {
       { path: this.path("Notes", "GraviTON_ КОН и архитектура хозяйственной системы.md"), content: gravitonKonArchitecture },
       { path: this.path("Добро пожаловать.md"), content: welcomeNote }
     ];
-    for (const file of files) {
-      if (!this.vault.getAbstractFileByPath(file.path)) await this.vault.create(file.path, file.content);
-    }
+    for (const file of files) await createVaultFileIfAbsent(this.vault, file.path, file.content);
   }
 
   async createTransaction(transaction: Transaction): Promise<TFile> {

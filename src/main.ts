@@ -15,13 +15,18 @@ export default class BuchhaltzarPlugin extends Plugin {
     this.settings = { ...DEFAULT_SETTINGS, ...saved, ai: { ...DEFAULT_SETTINGS.ai, ...saved?.ai } };
     if (!this.settings.ai.rememberApiKey) delete this.settings.ai.apiKey;
     this.rebuildService();
-    await this.service.installBundledContent();
     this.registerView(VIEW_TYPE_BUCHHALTZAR, (leaf) => new DashboardView(leaf, this.service, () => this.createAiProvider(), async (path) => { await this.app.workspace.openLinkText(path, "", true); }));
     this.addRibbonIcon("landmark", "Открыть Buchhaltzar", () => void this.activateView());
     this.addCommand({ id: "open-dashboard", name: "Открыть панель", callback: () => void this.activateView() });
     this.addCommand({ id: "initialize-workspace", name: "Инициализировать область учёта", callback: () => void this.initialize() });
     this.addSettingTab(new BuchhaltzarSettingTab(this.app, this));
-    this.app.workspace.onLayoutReady(() => void this.offerInitialization());
+    this.app.workspace.onLayoutReady(() => void this.afterLayoutReady());
+  }
+
+  private async afterLayoutReady(): Promise<void> {
+    try { await this.service.installBundledContent(); }
+    catch (error) { new Notice(`Buchhaltzar: ${error instanceof Error ? error.message : String(error)}`, 7000); }
+    await this.offerInitialization();
   }
 
   onunload(): void { this.app.workspace.detachLeavesOfType(VIEW_TYPE_BUCHHALTZAR); }
